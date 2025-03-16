@@ -6,6 +6,14 @@ The Agents App is a Python-based GUI application that allows users to interact w
 
 ## Features
 
+- 🤖 Intelligent RAG Agent for context-aware responses
+- 📁 Support for multiple document types (.txt, .md, .py)
+- 🔍 Advanced document indexing and retrieval
+- 💻 User-friendly GUI interface
+- 🔄 Real-time response streaming
+- ⚙️ Configurable embedding and language models
+- 🎯 Precise code and text splitting capabilities
+
 ## Requirements
 
 ### Functional Requirements
@@ -84,7 +92,65 @@ The application shall provide feedback to the user for all actions (e.g., succes
 
 ## Modules
 
+### Core Components
+- `agents/`: Contains agent implementations (RAGAgent)
+- `gui/`: PyQt6-based user interface components
+- `utils/`: Helper functions and utilities
+- `config/`: Configuration handlers
+- `processors/`: Document and code processors
 
-## File Structure by Folder
-## UML Diagram
+## File Structure
+```
+agents_app/
+├── agents/
+│   ├── __init__.py
+│   ├── base_agent.py
+│   └── rag_agent.py
+├── gui/
+│   ├── __init__.py
+│   ├── main_window.py
+│   └── components/
+├── utils/
+│   ├── __init__.py
+│   └── helpers.py
+├── config/
+│   └── settings.py
+├── processors/
+│   ├── __init__.py
+│   ├── code_splitter.py
+│   └── text_splitter.py
+└── main.py
+```
+
+## UML Diagram in PlantUML Format
+[Add UML diagram here]
+
+## Future Improvements
+
+### Short-term Improvements
+1. Add support for more document formats (PDF, DOCX)
+2. Implement agent configuration persistence
+3. Add progress bars for long-running operations
+4. Create detailed logging system
+5. Add unit tests and integration tests
+
+### Medium-term Improvements
+1. Support for multiple concurrent agents
+2. Document comparison capabilities
+3. Export/Import functionality for indexed data
+4. Custom splitting rules configuration
+5. Memory management for large document sets
+
+### Long-term Improvements
+1. Implement collaborative features
+2. Add support for remote document repositories
+3. Create plugin system for extensibility
+4. Implement advanced caching mechanisms
+5. Add visualization tools for document relationships
+
+## Contributing
+[Add contribution guidelines]
+
+## License
+[Add license information]
 
