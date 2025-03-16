@@ -1,0 +1,54 @@
+name: Search AgentWorkflow Usage
+
+on:
+  workflow_dispatch:
+
+jobs:
+  search_agent_workflow_usage:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install requests pygithub
+
+    - name: Search AgentWorkflow usage
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      run: |
+        import requests
+        from github import Github
+
+        # Initialize GitHub API client
+        g = Github("${{ secrets.GITHUB_TOKEN }}")
+
+        # Search for repositories mentioning AgentWorkflow
+        query = "AgentWorkflow in:file"
+        result = g.search_code(query, sort="indexed")
+        
+        summaries = []
+        for file in result:
+            repo = file.repository.full_name
+            file_path = file.path
+            html_url = file.html_url
+            summary = f"Repository: {repo}\nFile: {file_path}\nLink: {html_url}\n"
+            summaries.append(summary)
+
+        # Save summaries to a file
+        with open("agent_workflow_usage_summaries.txt", "w") as f:
+            f.write("\n\n".join(summaries))
+
+    - name: Upload summaries
+      uses: actions/upload-artifact@v2
+      with:
+        name: agent-workflow-usage-summaries
+        path: agent_workflow_usage_summaries.txt
