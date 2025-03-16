@@ -23,13 +23,13 @@ jobs:
 
     - name: Search AgentWorkflow usage
       env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GITHUB_TOKEN: ${{ secrets.TOKEN }}
       run: |
         import requests
         from github import Github
 
         # Initialize GitHub API client
-        g = Github("${{ secrets.GITHUB_TOKEN }}")
+        g = Github("${{ secrets.TOKEN }}")
 
         # Search for repositories mentioning AgentWorkflow
         query = "AgentWorkflow in:file"
