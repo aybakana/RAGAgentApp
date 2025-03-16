@@ -1,8 +1,8 @@
-# RAG System
+# RAG Agent App
 
 ## Description
 
-The RAG System
+The RAG Agent App is a GUI App for talking to the Agent for asking questions about the documents and codes loaded into the app
 
 ## Features
 
