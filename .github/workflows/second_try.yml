@@ -48,7 +48,7 @@ jobs:
             f.write("\n\n".join(summaries))
 
     - name: Upload summaries
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: agent-workflow-usage-summaries
         path: agent_workflow_usage_summaries.txt
