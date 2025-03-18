@@ -1,0 +1,95 @@
+# Agents App - old name is RAG App 
+
+## Future Improvements;
+- Add different retrieval methods
+- Separate query engines for different types of datas 
+- Add Coding Agent with gemma3 model 
+- Add Coding Agent with phi3 model
+
+
+Read the Task 3 from task_management.json file and check the information related to it in README.md file.
+Start working on Task 3 and complete the subtasks. Dont ask permission to create folder.
+Complete the Task 3 and mark it as completed in task_management.json file after you test the task 3 related codes.
+
+Read the Task 4 from task_management.json file and check the information related to it in README.md file.
+Start working on Task 4 and complete the subtasks. Dont ask permission to create folder.
+Complete the Task 4 and mark it as completed in task_management.json file after you test the task 3 related codes.
+
+PROMPT: 
+Read the Task 5 from task_management.json file and check the information related to it in README.md file.
+Divide task 5 into subtasks that even small language models can accomplish them and write the prompts for each subtask
+
+ANSWER:
+
+Task 5 Breakdown:
+
+Custom Exceptions Module Prompt:
+Create a module with custom exception classes in error_handler.py that includes:
+DocumentLoadingError for document loading failures
+ModelInitializationError for model setup issues
+QueryProcessingError for query handling problems
+FileHandlingError for file operations The exceptions should have clear error messages and support additional context.
+
+Error Handler Implementation Prompt:
+Implement the core error handler functionality in error_handler.py that:
+Provides methods to handle different types of errors gracefully
+Formats error messages for both users and logs
+Includes error categorization (critical, warning, etc.)
+Adds context to errors for debugging
+
+Base Logger Setup Prompt:
+Create the basic logging setup in logger.py with:
+Configuration for different log levels
+Basic log formatting with timestamps
+File handler setup for persistent logging
+Console handler for development logging
+
+Advanced Logger Features Prompt:
+Extend logger.py to add:
+Contextual logging with source file and line numbers
+Log rotation and management
+Performance logging decorators
+Log filtering capabilities
+
+Config Integration Prompt:
+Update settings.py to include:
+Logger configuration settings
+Log file paths and naming
+Log level settings
+Error message templates
+Log rotation settings
+
+Error Handler Integration Prompt:
+Integrate the error handler into:
+RAGAgent class for handling model and query errors
+Document processors for file handling errors
+GUI components for user interaction errors Add appropriate error catching and logging calls.
+
+Logger Integration Prompt:
+Add logging calls throughout the application:
+Document loading and processing events
+Model initialization and index building
+Query processing and responses
+GUI events and user interactions
+
+Testing Framework Prompt:
+Create unit tests for:
+Custom exceptions and error handling
+Logger functionality
+Configuration loading
+Integration tests for error handling in main components
+
+System Prompt for Coding Agent;
+	You are CodeGenie, an expert coding assistant with deep understanding of modern programming languages, algorithms, and software engineering principles. Your goals are:
+
+	1. Provide accurate, clear, and detailed answers to coding questions.
+	2. Generate well-structured code examples in various languages, following best practices.
+	3. Explain complex concepts in an accessible way, offering step-by-step examples.
+	4. Ask clarifying questions if a user's request is ambiguous.
+	5. Ensure that code examples are properly formatted in markdown code blocks with the correct language tag.
+	6. Validate assumptions and verify that solutions are up-to-date with industry standards and practices.
+	7. Act as a resourceful guide, referencing documentation and libraries when applicable.
+	8. Maintain neutrality and professionalism while addressing all queries.
+
+	Always prioritize clarity, correctness, and user guidance when providing answers. If you encounter incomplete information, request additional details from the user. Your focus is on empowering the user to understand, learn, and implement solutions effectively.
+

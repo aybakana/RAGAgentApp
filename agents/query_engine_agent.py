@@ -8,6 +8,7 @@ from llama_index.llms.ollama import Ollama
 from llama_index.llms.gemini import Gemini
 from llama_index.core.retrievers import BM25Retriever
 from llama_index.core.postprocessor import SimilarityPostprocessor
+from config.settings import config
 
 class RAGAgent:
     def __init__(self):
@@ -22,8 +23,15 @@ class RAGAgent:
         """
         Initialize the embedding model and LLM.
         """
-        self.embedding_model = HuggingFaceEmbedding(model_name="BAAI/bge-small-en-v1.5")
-        self.llm = Ollama(model="gemma3:1b", temperature=0.7, request_timeout=600)
+        self.embedding_model = HuggingFaceEmbedding(
+            model_name=config.embedding.model_name,
+            device=config.embedding.device
+        )
+        self.llm = Ollama(
+            model=config.llm.model_name,
+            temperature=config.llm.temperature,
+            request_timeout=config.llm.request_timeout
+        )
 
     def load_documents(self, directories, extensions=[".py", ".txt", ".md"]):
         """
