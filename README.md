@@ -133,6 +133,7 @@ agents_app/
 3. Add progress bars for long-running operations
 4. Create detailed logging system
 5. Add unit tests and integration tests
+6. Add BM25Retriever
 
 ### Medium-term Improvements
 1. Support for multiple concurrent agents

@@ -1,13 +1,13 @@
-# main.py
 import sys
 from PyQt6.QtWidgets import QApplication
-from gui import AgentAppGUI
+from gui.main_window import MainWindow
 
 def main():
+    """Main entry point for the RAG Agent application."""
     app = QApplication(sys.argv)
-    gui = AgentAppGUI()
-    gui.show()
-    sys.exit(app.exec())
+    window = MainWindow()
+    window.show()
+    return app.exec()
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())

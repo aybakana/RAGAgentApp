@@ -6,6 +6,8 @@ from llama_index.core.agent.workflow import AgentWorkflow
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.gemini import Gemini
+from llama_index.core.retrievers import BM25Retriever
+from llama_index.core.postprocessor import SimilarityPostprocessor
 
 class RAGAgent:
     def __init__(self):
@@ -14,6 +16,7 @@ class RAGAgent:
         self.llm = None
         self.query_engine = None
         self.query_engine_agent = None
+        self.bm25_retriever = None
 
     def init_models(self):
         """
@@ -42,12 +45,27 @@ class RAGAgent:
 
     def build_index(self):
         """
-        Build the VectorStore index from the loaded nodes.
+        Build the VectorStore index and BM25 retriever from the loaded nodes.
         """
         if not self.nodes:
             raise ValueError("No nodes loaded. Please load documents first.")
+        
+        # Create vector store index
         self.index = VectorStoreIndex(self.nodes, embed_model=self.embedding_model)
-        self.query_engine = self.index.as_query_engine(llm=self.llm, similarity_top_k=5)
+        
+        # Initialize BM25 retriever
+        self.bm25_retriever = BM25Retriever.from_defaults(nodes=self.nodes, similarity_top_k=5)
+        
+        # Create hybrid retriever combining vector and BM25
+        vector_retriever = self.index.as_retriever(similarity_top_k=5)
+        retrievers = [vector_retriever, self.bm25_retriever]
+        
+        # Create query engine with post-processing
+        self.query_engine = self.index.as_query_engine(
+            llm=self.llm,
+            retriever=vector_retriever,  # Default to vector retriever
+            node_postprocessors=[SimilarityPostprocessor(similarity_cutoff=0.7)]
+        )
 
     def init_agent(self):
         """
@@ -66,10 +84,28 @@ class RAGAgent:
             verbose=True
         )
 
-    def query(self, question):
+    def query(self, question, use_bm25=False):
         """
         Query the RAG agent with a question.
+        Args:
+            question (str): The question to ask
+            use_bm25 (bool): Whether to use BM25 retriever instead of vector retriever
         """
         if not self.query_engine_agent:
             raise ValueError("Agent not initialized. Call `init_agent` first.")
-        return self.query_engine_agent.query(question)
+        
+        if use_bm25 and self.bm25_retriever:
+            # Use BM25 retriever for this query
+            retrieved_nodes = self.bm25_retriever.retrieve(question)
+            # Update query engine with retrieved nodes
+            response = self.query_engine.query(question, retrieved_nodes=retrieved_nodes)
+        else:
+            # Use default vector retriever
+            response = self.query_engine_agent.query(question)
+            
+        return response
+
+from .rag_agent import RAGAgent
+
+# Re-export RAGAgent as the default agent
+__all__ = ['RAGAgent']

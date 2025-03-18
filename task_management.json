@@ -1,0 +1,166 @@
+{
+  "project_name": "Agents App",
+  "description": "A Python-based GUI application for intelligent document interaction using RAG approach",
+  "tasks": [
+    {
+      "id": 1,
+      "title": "Set up Project Structure",
+      "description": "Initialize project with basic directory structure and core files",
+      "module": "root",
+      "status": "completed",
+      "metadata": {
+        "estimated_time": "2 hours",
+        "priority": "High",
+        "dependencies": []
+      },
+      "sub_tasks": [
+        {
+          "id": "1.1",
+          "title": "Create Directory Structure",
+          "description": "Set up all required directories and __init__.py files",
+          "status": "completed",
+          "file": "Project Root",
+          "implementation_details": "Create agents/, gui/, utils/, config/, processors/ directories",
+          "ai_prompt": "Create the directory structure and __init__.py files for the RAG App project"
+        },
+        {
+          "id": "1.2",
+          "title": "Initialize Base Configuration",
+          "description": "Create settings.py with default configurations",
+          "status": "completed",
+          "file": "config/settings.py",
+          "implementation_details": "Define configuration classes for embedding models, LLM settings, and splitter parameters",
+          "ai_prompt": "Create a Python configuration class for RAG App settings including embedding model, LLM, and splitter parameters"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Implement Document Processors",
+      "description": "Create code and text splitter implementations",
+      "module": "processors",
+      "status": "completed",
+      "metadata": {
+        "estimated_time": "4 hours",
+        "priority": "High",
+        "dependencies": [1]
+      },
+      "sub_tasks": [
+        {
+          "id": "2.1",
+          "title": "Implement CodeSplitter",
+          "description": "Create code splitter with configurable parameters",
+          "status": "completed",
+          "file": "processors/code_splitter.py",
+          "implementation_details": "Implement CodeSplitter class with max_chars parameter",
+          "ai_prompt": "Create a Python class for splitting code files into nodes using llama-index"
+        },
+        {
+          "id": "2.2",
+          "title": "Implement TextSplitter",
+          "description": "Create text splitter with chunk settings",
+          "status": "completed",
+          "file": "processors/text_splitter.py",
+          "implementation_details": "Implement SentenceSplitter with chunk_size and overlap parameters",
+          "ai_prompt": "Create a Python class for splitting text documents into chunks using llama-index"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Implement RAG Agent",
+      "description": "Create the core RAG agent implementation",
+      "module": "agents",
+      "status": "completed",
+      "metadata": {
+        "estimated_time": "8 hours",
+        "priority": "High",
+        "dependencies": [1, 2]
+      },
+      "sub_tasks": [
+        {
+          "id": "3.1",
+          "title": "Create BaseAgent Interface",
+          "description": "Define base agent interface",
+          "status": "completed",
+          "file": "agents/base_agent.py",
+          "implementation_details": "Create abstract base class with core agent methods",
+          "ai_prompt": "Create an abstract base class for agents with methods for initialization and query handling"
+        },
+        {
+          "id": "3.2",
+          "title": "Implement RAGAgent",
+          "description": "Create RAG agent implementation",
+          "status": "completed",
+          "file": "agents/rag_agent.py",
+          "implementation_details": "Implement RAGAgent with document loading and query handling",
+          "ai_prompt": "Create a RAGAgent class that implements document loading, indexing, and query handling using llama-index"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Create GUI Interface",
+      "description": "Implement PyQt6-based user interface",
+      "module": "gui",
+      "status": "completed",
+      "metadata": {
+        "estimated_time": "6 hours",
+        "priority": "Medium",
+        "dependencies": [3]
+      },
+      "sub_tasks": [
+        {
+          "id": "4.1",
+          "title": "Design Main Window",
+          "description": "Create main application window",
+          "status": "completed",
+          "file": "gui/main_window.py",
+          "implementation_details": "Implement MainWindow class with all required UI components",
+          "ai_prompt": "Create a PyQt6 MainWindow class with directory selection, agent initialization, and query interface"
+        },
+        {
+          "id": "4.2",
+          "title": "Implement Response Display",
+          "description": "Create response display component",
+          "status": "completed",
+          "file": "gui/components/response_display.py",
+          "implementation_details": "Create component for displaying streaming responses",
+          "ai_prompt": "Create a PyQt6 widget for displaying streaming text responses from the RAG agent"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Add Error Handling and Logging",
+      "description": "Implement comprehensive error handling",
+      "module": "utils",
+      "status": "pending",
+      "metadata": {
+        "estimated_time": "4 hours",
+        "priority": "Medium",
+        "dependencies": [1, 2, 3, 4]
+      },
+      "sub_tasks": [
+        {
+          "id": "5.1",
+          "title": "Create Error Handler",
+          "description": "Implement error handling utilities",
+          "status": "pending",
+          "file": "utils/error_handler.py",
+          "implementation_details": "Create error handling class with custom exceptions",
+          "ai_prompt": "Create a Python error handling system with custom exceptions for the RAG App"
+        },
+        {
+          "id": "5.2",
+          "title": "Implement Logging",
+          "description": "Add logging functionality",
+          "status": "pending",
+          "file": "utils/logger.py",
+          "implementation_details": "Create logging utility with different log levels",
+          "ai_prompt": "Create a Python logging utility for the RAG App with configurable log levels"
+        }
+      ]
+    }
+  ]
+}
