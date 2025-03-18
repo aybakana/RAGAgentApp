@@ -30,6 +30,23 @@ class LLMConfig:
     request_timeout: int = 600
 
 @dataclass
+class RetrievalLLMConfig:
+    model_name: str = "gemma3:1b"
+    temperature: float = 0.7
+    max_tokens: Optional[int] = None
+    top_p: float = 0.95
+    request_timeout: int = 600
+
+@dataclass
+class GeminiLLMConfig:
+    model_name: str = "models/gemini-1.5-flash"
+# models/gemini-2.0-flash",
+# models/gemini-2.0-flash-thinking-exp-01-21
+# models/gemini-1.5-flash
+# models/gemini-2.0-flash
+# models/gemini-2.0-pro-exp-02-05    
+
+@dataclass
 class SplitterConfig:
     # Code splitter settings
     code_chunk_size: int = 1000
@@ -48,6 +65,8 @@ class SplitterConfig:
 class AppConfig:
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
+    geminiLLM: GeminiLLMConfig = field(default_factory=GeminiLLMConfig)
+    retrieval_llm: RetrievalLLMConfig = field(default_factory=RetrievalLLMConfig)
     splitter: SplitterConfig = field(default_factory=SplitterConfig)
     
     # Default directories for document processing

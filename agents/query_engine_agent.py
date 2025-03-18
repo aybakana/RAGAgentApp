@@ -6,7 +6,6 @@ from llama_index.core.agent.workflow import AgentWorkflow
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.gemini import Gemini
-from llama_index.core.retrievers import BM25Retriever
 from llama_index.core.postprocessor import SimilarityPostprocessor
 from config.settings import config
 
@@ -17,7 +16,7 @@ class RAGAgent:
         self.llm = None
         self.query_engine = None
         self.query_engine_agent = None
-        self.bm25_retriever = None
+        self.initialized = False
 
     def init_models(self):
         """
@@ -27,10 +26,13 @@ class RAGAgent:
             model_name=config.embedding.model_name,
             device=config.embedding.device
         )
-        self.llm = Ollama(
+        self.retrieval_llm = Ollama(
             model=config.llm.model_name,
             temperature=config.llm.temperature,
             request_timeout=config.llm.request_timeout
+        )
+        self.gemini_llm = Gemini(
+            model=config.geminiLLM.model_name,
         )
 
     def load_documents(self, directories, extensions=[".py", ".txt", ".md"]):
@@ -53,7 +55,7 @@ class RAGAgent:
 
     def build_index(self):
         """
-        Build the VectorStore index and BM25 retriever from the loaded nodes.
+        Build the VectorStore index retriever from the loaded nodes.
         """
         if not self.nodes:
             raise ValueError("No nodes loaded. Please load documents first.")
@@ -61,16 +63,11 @@ class RAGAgent:
         # Create vector store index
         self.index = VectorStoreIndex(self.nodes, embed_model=self.embedding_model)
         
-        # Initialize BM25 retriever
-        self.bm25_retriever = BM25Retriever.from_defaults(nodes=self.nodes, similarity_top_k=5)
-        
-        # Create hybrid retriever combining vector and BM25
         vector_retriever = self.index.as_retriever(similarity_top_k=5)
-        retrievers = [vector_retriever, self.bm25_retriever]
         
         # Create query engine with post-processing
         self.query_engine = self.index.as_query_engine(
-            llm=self.llm,
+            llm=self.retrieval_llm,  # Default to retrieval LLM
             retriever=vector_retriever,  # Default to vector retriever
             node_postprocessors=[SimilarityPostprocessor(similarity_cutoff=0.7)]
         )
@@ -79,6 +76,9 @@ class RAGAgent:
         """
         Initialize the RAG agent workflow.
         """
+        if not self.nodes or not self.query_engine:
+            raise ValueError("Documents must be loaded and index built before initializing agent.")
+
         query_engine_tool = QueryEngineTool.from_defaults(
             query_engine=self.query_engine,
             name="QueryEngineTool",
@@ -87,31 +87,36 @@ class RAGAgent:
         )
         self.query_engine_agent = AgentWorkflow.from_tools_or_functions(
             [query_engine_tool],
-            llm=self.llm,
+            llm=self.gemini_llm,
             system_prompt="You are a specialized assistant that retrieves structured and relevant code knowledge.",
             verbose=True
         )
+        self.initialized = True
 
-    def query(self, question, use_bm25=False):
+    def query(self, question):
         """
         Query the RAG agent with a question.
         Args:
             question (str): The question to ask
-            use_bm25 (bool): Whether to use BM25 retriever instead of vector retriever
         """
-        if not self.query_engine_agent:
+        if not self.initialized:
             raise ValueError("Agent not initialized. Call `init_agent` first.")
         
-        if use_bm25 and self.bm25_retriever:
-            # Use BM25 retriever for this query
-            retrieved_nodes = self.bm25_retriever.retrieve(question)
-            # Update query engine with retrieved nodes
-            response = self.query_engine.query(question, retrieved_nodes=retrieved_nodes)
-        else:
-            # Use default vector retriever
-            response = self.query_engine_agent.query(question)
+        # Use default vector retriever
+        response = self.query_engine_agent.query(question)
             
         return response
+
+    def get_stats(self):
+        """
+        Get statistics about the loaded documents and nodes.
+        Returns:
+            dict: Dictionary containing statistics like total_nodes
+        """
+        return {
+            "total_nodes": len(self.nodes),
+            "is_initialized": self.initialized
+        }
 
 from .rag_agent import RAGAgent
 

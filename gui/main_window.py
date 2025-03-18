@@ -5,7 +5,8 @@ from PyQt6.QtWidgets import (
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon
-from agents.rag_agent import RAGAgent
+#from agents.rag_agent import RAGAgent
+from agents.query_engine_agent import RAGAgent
 from .components.response_display import ResponseDisplay
 
 class AgentWorker(QThread):
