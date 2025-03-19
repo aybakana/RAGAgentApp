@@ -57,7 +57,7 @@ class SplitterConfig:
     text_chunk_overlap: int = 20
     
     # File extensions to process
-    python_extensions: List[str] = field(default_factory=lambda: [".py"])
+    python_extensions: List[str] = field(default_factory=lambda: [".py",".ipynb"])
     web_code_extensions: List[str] = field(default_factory=lambda: [".js", ".ts"])
     cs_extensions: List[str] = field(default_factory=lambda: [".cs"])
     java_extensions: List[str] = field(default_factory=lambda: [".java"])

@@ -1,13 +1,15 @@
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QFileDialog, QMessageBox, QProgressBar,
-    QLineEdit, QStatusBar, QComboBox
+    QLineEdit, QStatusBar, QComboBox, QListWidget
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon
-from agents.query_engine_agent import RAGAgent
+from agents.rag_agent import RAGAgent
 from .components.response_display import ResponseDisplay
 from config.settings import config
+import json
+import os
 
 class AgentWorker(QThread):
     """Worker thread for running agent operations."""
@@ -23,21 +25,42 @@ class AgentWorker(QThread):
 
     def run(self):
         try:
-            if self.task == "load_documents":
-                self.agent.load_documents(self.args[0])
+            if self.task == "load_directory":
+                self.progress.emit(10)
+                nodes = self.agent.load_directory(self.args[0])
+                self.agent.build_index_and_query_engine(self.args[0], nodes)
                 self.progress.emit(100)
                 self.finished.emit(None)
             elif self.task == "init_agent":
-                self.agent.init_models()
-                self.progress.emit(33)
-                self.agent.build_index()
-                self.progress.emit(66)
+                self.progress.emit(20)
                 self.agent.init_agent()
                 self.progress.emit(100)
                 self.finished.emit(None)
             elif self.task == "query":
+                self.progress.emit(10)
                 response = self.agent.query(self.args[0])
+                self.progress.emit(100)
                 self.finished.emit(response)
+            elif self.task == "query_engine_query":
+                self.progress.emit(10)
+                response = self.agent.query_engine_query(self.args[0])
+                self.progress.emit(100)
+                self.finished.emit(response)
+            elif self.task == "save_all_indexes":
+                self.progress.emit(10)
+                self.agent.save_all_indexes(self.args[0])
+                self.progress.emit(100)
+                self.finished.emit(None)
+            elif self.task == "load_all_indexes":
+                self.progress.emit(10)
+                self.agent.load_all_indexes(self.args[0])
+                self.progress.emit(100)
+                self.finished.emit(None)
+            elif self.task == "remove_directory":
+                self.progress.emit(10)
+                self.agent.remove_directory(self.args[0])
+                self.progress.emit(100)
+                self.finished.emit(None)
         except Exception as e:
             self.error.emit(str(e))
 
@@ -45,9 +68,34 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.agent = RAGAgent()
+        self.directories = set()  # Track indexed directories
+        self.storage_path = None  # Last used storage path for indexes
+        self.load_directories_state()  # Load saved state
         self.init_ui()
         self.setWindowTitle("RAG Agent Assistant")
         self.resize(800, 600)
+
+    def load_directories_state(self):
+        """Load saved directories and storage path from state file"""
+        try:
+            with open('directories_state.json', 'r') as f:
+                state = json.loads(f.read())
+                self.directories = set(state.get('directories', []))
+                self.storage_path = state.get('storage_path', None)
+                # Try to load indexes if storage path exists
+                if self.storage_path and os.path.exists(self.storage_path):
+                    self.agent.load_all_indexes(self.storage_path, self.directories)
+        except FileNotFoundError:
+            pass
+
+    def save_directories_state(self):
+        """Save current directories and storage path to state file"""
+        state = {
+            'directories': list(self.directories),
+            'storage_path': self.storage_path
+        }
+        with open('directories_state.json', 'w') as f:
+            json.dump(state, f)
 
     def init_ui(self):
         """Initialize the user interface."""
@@ -67,18 +115,56 @@ class MainWindow(QMainWindow):
         self.progress_bar.setVisible(False)
         layout.addWidget(self.progress_bar)
 
-        # Directory Selection
-        dir_layout = QHBoxLayout()
+        # Directory Management Section
+        dir_section = QVBoxLayout()
+        dir_header = QHBoxLayout()
+        
+        # Directory buttons
         self.dir_button = QPushButton("Add Directory")
         self.dir_button.clicked.connect(self.select_directory)
-        dir_layout.addWidget(self.dir_button)
+        dir_header.addWidget(self.dir_button)
         
-        self.init_button = QPushButton("Initialize Agent")
-        self.init_button.clicked.connect(self.initialize_agent)
-        dir_layout.addWidget(self.init_button)
-        layout.addLayout(dir_layout)
+        self.remove_dir_button = QPushButton("Remove Directory")
+        self.remove_dir_button.clicked.connect(self.remove_directory)
+        dir_header.addWidget(self.remove_dir_button)
+        
+        # Index management buttons
+        self.save_indexes_button = QPushButton("Save Indexes")
+        self.save_indexes_button.clicked.connect(self.save_indexes)
+        dir_header.addWidget(self.save_indexes_button)
+        
+        self.load_indexes_button = QPushButton("Load Indexes")
+        self.load_indexes_button.clicked.connect(self.load_indexes)
+        dir_header.addWidget(self.load_indexes_button)
+        
+        dir_section.addLayout(dir_header)
+        
+        # Directory list
+        self.dir_list = QListWidget()
+        self.dir_list.setMaximumHeight(100)
+        self.update_directory_list()
+        dir_section.addWidget(self.dir_list)
+        
+        layout.addLayout(dir_section)
+        
+        # Initialize Agent button moved after directory section
+        self.init_agent_button = QPushButton("Initialize Agent")
+        self.init_agent_button.clicked.connect(self.initialize_agent)
+        layout.addWidget(self.init_agent_button)
 
-        # Query Input and Controls
+        # Query Section
+        query_section = QVBoxLayout()
+        
+        # Query type selection
+        query_type_layout = QHBoxLayout()
+        self.query_type_label = QLabel("Query Type:")
+        self.query_type_selector = QComboBox()
+        self.query_type_selector.addItems(["Agent Query", "Direct Query Engine"])
+        query_type_layout.addWidget(self.query_type_label)
+        query_type_layout.addWidget(self.query_type_selector)
+        query_section.addLayout(query_type_layout)
+        
+        # Query input and controls
         query_layout = QHBoxLayout()
         self.query_input = QLineEdit()
         self.query_input.setPlaceholderText("Enter your question here...")
@@ -106,7 +192,8 @@ class MainWindow(QMainWindow):
         self.cancel_button.setEnabled(False)
         query_layout.addWidget(self.cancel_button)
         
-        layout.addLayout(query_layout)
+        query_section.addLayout(query_layout)
+        layout.addLayout(query_section)
 
         # Response Display
         self.response_display = ResponseDisplay()
@@ -118,7 +205,7 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage("Ready")
 
         # Set initial button states
-        self.init_button.setEnabled(False)
+        self.init_agent_button.setEnabled(False)
         self.ask_button.setEnabled(False)
 
     def show_progress_bar(self):
@@ -141,14 +228,15 @@ class MainWindow(QMainWindow):
             options=QFileDialog.Option.ShowDirsOnly
         )
         if directory:
+            self.directories.add(directory)
             self.show_progress_bar()
             self.status_bar.showMessage("Loading documents...")
             self.dir_button.setEnabled(False)
             
             # Start worker thread
-            self.worker = AgentWorker(self.agent, "load_documents", directory)
+            self.worker = AgentWorker(self.agent, "load_directory", directory)
             self.worker.progress.connect(self.update_progress)
-            self.worker.finished.connect(self.on_documents_loaded)
+            self.worker.finished.connect(self.on_directory_loaded)
             self.worker.error.connect(self.on_error)
             self.worker.start()
 
@@ -156,7 +244,7 @@ class MainWindow(QMainWindow):
         """Initialize the agent with loaded documents."""
         self.show_progress_bar()
         self.status_bar.showMessage("Initializing agent...")
-        self.init_button.setEnabled(False)
+        self.init_agent_button.setEnabled(False)
         
         # Start worker thread
         self.worker = AgentWorker(self.agent, "init_agent")
@@ -166,7 +254,7 @@ class MainWindow(QMainWindow):
         self.worker.start()
 
     def ask_question(self):
-        """Process a user question."""
+        """Process a user question based on selected query type"""
         question = self.query_input.text().strip()
         if not question:
             QMessageBox.warning(self, "Input Error", "Please enter a question.")
@@ -181,8 +269,13 @@ class MainWindow(QMainWindow):
         # Clear previous response
         self.response_display.clear()
         
-        # Start worker thread
-        self.worker = AgentWorker(self.agent, "query", question)
+        # Start worker thread based on query type
+        query_type = self.query_type_selector.currentText()
+        if query_type == "Direct Query Engine":
+            self.worker = AgentWorker(self.agent, "query_engine_query", question)
+        else:
+            self.worker = AgentWorker(self.agent, "query", question)
+            
         self.worker.finished.connect(self.on_response_received)
         self.worker.error.connect(self.on_error)
         self.worker.start()
@@ -213,12 +306,13 @@ class MainWindow(QMainWindow):
             # Reinitialize agent
             self.initialize_agent()
 
-    def on_documents_loaded(self, _):
+    def on_directory_loaded(self, _):
         """Handle completion of document loading."""
         self.hide_progress_bar()
         self.status_bar.showMessage("Documents loaded successfully")
         self.dir_button.setEnabled(True)
-        self.init_button.setEnabled(True)
+        self.init_agent_button.setEnabled(True)   # enable the init agent button
+        
         
         # Show stats
         stats = self.agent.get_stats()
@@ -227,6 +321,8 @@ class MainWindow(QMainWindow):
             "Documents Loaded",
             f"Successfully loaded {stats['total_nodes']} document nodes."
         )
+        self.update_directory_list()
+        self.save_directories_state()
 
     def on_agent_initialized(self, _):
         """Handle completion of agent initialization."""
@@ -257,7 +353,7 @@ class MainWindow(QMainWindow):
         self.hide_progress_bar()
         self.status_bar.showMessage("Error occurred")
         self.dir_button.setEnabled(True)
-        self.init_button.setEnabled(True)
+        self.init_agent_button.setEnabled(True)
         self.ask_button.setEnabled(True)
         self.query_input.setEnabled(True)
         
@@ -266,3 +362,83 @@ class MainWindow(QMainWindow):
             "Error",
             f"An error occurred: {error_message}"
         )
+
+    def update_directory_list(self):
+        """Update the directory list widget with current directories"""
+        self.dir_list.clear()
+        for directory in sorted(self.directories):
+            self.dir_list.addItem(directory)
+
+    def remove_directory(self):
+        """Remove selected directory from the index"""
+        current_item = self.dir_list.currentItem()
+        if current_item is None:
+            QMessageBox.warning(self, "Selection Error", "Please select a directory to remove.")
+            return
+        
+        directory = current_item.text()
+        
+        # Start worker thread
+        self.worker = AgentWorker(self.agent, "remove_directory", directory)
+        self.worker.finished.connect(self.on_directory_removed)
+        self.worker.error.connect(self.on_error)
+        self.worker.start()
+
+        self.directories.remove(directory)
+        self.show_progress_bar()
+        self.status_bar.showMessage("Removing directory...")        
+
+    def on_directory_removed(self, _):
+        """Handle completion of directory removal."""
+        self.hide_progress_bar()
+        self.status_bar.showMessage("Directory removed successfully")
+        self.update_directory_list()
+        self.save_directories_state()
+
+    def save_indexes(self):
+        """Save all indexes to a selected directory"""
+        directory = QFileDialog.getExistingDirectory(
+            self, "Select Directory to Save Indexes",
+            options=QFileDialog.Option.ShowDirsOnly
+        )
+        if directory:
+            self.storage_path = directory
+            self.show_progress_bar()
+            self.status_bar.showMessage("Saving indexes...")
+            
+            # Start worker thread
+            self.worker = AgentWorker(self.agent, "save_all_indexes", directory)
+            self.worker.finished.connect(self.on_indexes_saved)
+            self.worker.error.connect(self.on_error)
+            self.worker.start()
+
+    def on_indexes_saved(self, _):
+        """Handle completion of index saving."""
+        self.hide_progress_bar()
+        self.status_bar.showMessage("Indexes saved successfully")
+        self.save_directories_state()
+        QMessageBox.information(self, "Success", "Indexes saved successfully")
+
+    def load_indexes(self):
+        """Load all indexes from a selected directory"""
+        directory = QFileDialog.getExistingDirectory(
+            self, "Select Directory to Load Indexes",
+            options=QFileDialog.Option.ShowDirsOnly
+        )
+        if directory:
+            self.storage_path = directory
+            self.show_progress_bar()
+            self.status_bar.showMessage("Loading indexes...")
+            
+            # Start worker thread
+            self.worker = AgentWorker(self.agent, "load_all_indexes", directory)
+            self.worker.finished.connect(self.on_indexes_loaded)
+            self.worker.error.connect(self.on_error)
+            self.worker.start()
+
+    def on_indexes_loaded(self, _):
+        """Handle completion of index loading."""
+        self.hide_progress_bar()
+        self.status_bar.showMessage("Indexes loaded successfully")
+        self.save_directories_state()
+        QMessageBox.information(self, "Success", "Indexes loaded successfully")

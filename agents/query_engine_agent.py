@@ -3,11 +3,6 @@ from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
 from llama_index.core.node_parser import CodeSplitter, SentenceSplitter
 from llama_index.core.tools import QueryEngineTool
 from llama_index.core.agent.workflow import AgentWorkflow
-from llama_index.core.workflow import (
-    InputRequiredEvent,
-    HumanResponseEvent,
-    Context
-)
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.gemini import Gemini
@@ -19,7 +14,6 @@ class RAGAgent:
         self.nodes = []
         self.embedding_model = None
         self.llm = None
-        self.context = None
         self.query_engine = None
         self.query_engine_agent = None
         self.initialized = False
@@ -38,7 +32,7 @@ class RAGAgent:
             request_timeout=config.llm.request_timeout
         )
         self.gemini_llm = Gemini(
-            model=config.geminiLLM.model_name,
+            model=config.gemini20FlashLLM.model_name,
         )
 
     def load_documents(self, directories, extensions=[".py", ".txt", ".md"]):
@@ -78,7 +72,7 @@ class RAGAgent:
             node_postprocessors=[SimilarityPostprocessor(similarity_cutoff=0.7)]
         )
 
-    def init_agent(self, additional_tools=None):
+    def init_agent(self):
         """
         Initialize the RAG agent workflow.
         """
@@ -135,19 +129,12 @@ Do not generate responses before processing search results.
 If a search query returns no results, inform the user and ask for clarifications.
 Ensure responses remain accurate, concise, and informative."""
 
-        # Include additional tools if provided
-        tools = [query_engine_tool]
-        if additional_tools:
-            tools.extend(additional_tools)
-
         self.query_engine_agent = AgentWorkflow.from_tools_or_functions(
-            tools,
+            [query_engine_tool],
             llm=self.gemini_llm,
             system_prompt=system_prompt,
             verbose=True
         )
-        # init the Context from the AgentWorkflow
-        self.context = Context(self.query_engine_agent)
         self.initialized = True
 
     def query(self, question):
@@ -162,7 +149,7 @@ Ensure responses remain accurate, concise, and informative."""
             raise ValueError("Agent not initialized. Call `init_agent` first.")
         
         # Use default vector retriever
-        raw_response = self.query_engine_agent.query(question)
+        raw_response = self.query_engine_agent.run(user_msg=question)
         
         # Extract useful information from the raw response
         response_dict = {

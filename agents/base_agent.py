@@ -11,20 +11,6 @@ class BaseAgent(ABC):
         """Initialize required models (embedding, LLM, etc.)."""
         pass
 
-    @abstractmethod
-    def load_documents(self, directories: str, extensions: Optional[List[str]] = None) -> None:
-        """Load and process documents from specified directories.
-        
-        Args:
-            directories: Directory or list of directories to load documents from
-            extensions: Optional list of file extensions to filter by
-        """
-        pass
-
-    @abstractmethod
-    def build_index(self) -> None:
-        """Build search index from loaded documents."""
-        pass
 
     @abstractmethod
     def init_agent(self) -> None:

@@ -1,17 +1,15 @@
-from typing import List, Optional, Any
-from llama_index.core import VectorStoreIndex, SimpleDirectoryReader
-from llama_index.core.node_parser import CodeSplitter, SentenceSplitter
+from typing import List, Optional, Any, Dict
+from llama_index.core import VectorStoreIndex, SimpleDirectoryReader, StorageContext, load_index_from_storage
 from llama_index.core.tools import QueryEngineTool
 from llama_index.core.agent import ReActAgent
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.ollama import Ollama
 from llama_index.llms.gemini import Gemini
-from llama_index.core.indices.vector_store import VectorStoreIndex
 from llama_index.core.postprocessor import SimilarityPostprocessor
 from config.settings import config
 from processors.code_splitter import CustomCodeSplitter
 from processors.text_splitter import CustomTextSplitter
-from .base_agent import BaseAgent
+from agents.base_agent import BaseAgent
 
 class RAGAgent(BaseAgent):
     def __init__(self):
@@ -20,16 +18,23 @@ class RAGAgent(BaseAgent):
         self.llmQuery = None # Ollama or Gemini with standard capabilities
         self.llmMain = None  # Gemini with Flash capabilities
         self.agent = None
+        self.nodes = []
         self.query_engines: Dict[str, Any] = {}
         self.indexes: Dict[str, VectorStoreIndex] = {}        
         self.code_splitter = CustomCodeSplitter()
         self.text_splitter = CustomTextSplitter()
+        self.init_models()
         
     def init_models(self) -> None:
         """Initialize the embedding model and LLM."""
         self.embedding_model = HuggingFaceEmbedding(
             model_name=config.embedding.model_name,
             device=config.embedding.device
+        )
+        self.llmOllama = Ollama(
+            model=config.llm.model_name,
+            temperature=config.llm.temperature,
+            request_timeout=config.llm.request_timeout
         )
         self.llm15flashGemini = Gemini(
             model=config.gemini15FlashLLM.model_name,
@@ -40,8 +45,8 @@ class RAGAgent(BaseAgent):
 
     def load_directory(self, directory: str, extensions: Optional[List[str]] = None) -> List[Any]:
         """Load and process documents from specified directories."""
-        if directories in self.indexed_directories:
-            print(f"Directory '{directories}' has already been indexed.")
+        if directory in self.indexed_directories:
+            print(f"Directory '{directory}' has already been indexed.")
             return []
 
         if extensions is None:
@@ -51,32 +56,32 @@ class RAGAgent(BaseAgent):
             code_exts = [".py"]
             text_exts = [".txt", ".md"]
 
-        nodes = []
+        self.nodes = []
 
         # Load code files
         if code_exts:
             code_documents = SimpleDirectoryReader(
-                input_dir=directories, 
-                recursive=True, 
+                input_dir=directory,
+                recursive=True,
                 required_exts=code_exts
             ).load_data()
             code_nodes = self.code_splitter.split_documents(code_documents)
-            nodes.extend(code_nodes)
+            self.nodes.extend(code_nodes)
 
         # Load text files
         if text_exts:
             text_documents = SimpleDirectoryReader(
-                input_dir=directories, 
+                input_dir=directory, 
                 recursive=True, 
                 required_exts=text_exts
             ).load_data()
             text_nodes = self.text_splitter.split_documents(text_documents)
-            nodes.extend(text_nodes)
+            #self.nodes.extend(text_nodes)
 
-        self.indexed_directories.add(directories)
-        return nodes
+        self.indexed_directories.add(directory)
+        return self.nodes
 
-    def build_index(self, directory: str, nodes: List[Any]) -> None:
+    def build_index_and_query_engine(self, directory: str, nodes: List[Any]) -> None:
         """Build the vector store index for a specific directory."""
         if not nodes:
             raise ValueError("No documents loaded. Call load_directory first.")
@@ -105,17 +110,22 @@ class RAGAgent(BaseAgent):
         """Save the index for a specific directory to the specified storage path."""
         if directory not in self.indexes:
             raise ValueError(f"Index for directory '{directory}' not found.")
-        self.indexes[directory].save(storage_path)
+        self.indexes[directory].persist(persist_dir=storage_path)
 
     def save_all_indexes(self, storage_base_path: str) -> None:
         """Save all indexes to the specified base storage path."""
         for directory, index in self.indexes.items():
             storage_path = f"{storage_base_path}/{directory.replace('/', '_')}_index.json"
-            index.save(storage_path)
+            index.storage_context.persist(persist_dir=storage_path)
 
-    def load_index_and_query_engine(self, directory: str, storage_path: str) -> None:
+    def load_index_and_query_engine(self, directory: str, storage_path: str) -> bool:
         """Load the index for a specific directory from the specified storage path."""
-        index = VectorStoreIndex.load(storage_path)
+        try:
+            storage_context = StorageContext.from_defaults(persist_dir=storage_path)
+            index = load_index_from_storage(storage_context)
+        except:
+            return False
+        
         self.indexes[directory] = index
         
         # Create query engine with post-processing
@@ -127,23 +137,30 @@ class RAGAgent(BaseAgent):
             ]
         )
         self.query_engines[directory] = query_engine
+        return True
 
-    def load_all_indexes(self, storage_base_path: str) -> None:
+    def set_directories(self, directories: List[str]) -> None:
+        """Set the directories to be indexed."""
+        self.indexed_directories = set(directories)
+
+    def load_all_indexes(self, storage_base_path: str, directories) -> None:
         """Load all indexes from the specified base storage path."""
-        for directory in self.indexed_directories:
+        for directory in directories:
             storage_path = f"{storage_base_path}/{directory.replace('/', '_')}_index.json"
-            self.load_index_and_query_engine(directory, storage_path)        
+            self.load_index_and_query_engine(directory, storage_path)
 
 
     def add_directory_query_engine(self, directory: str, extensions: Optional[List[str]] = None) -> None:
         """Add a directory to the index and create a query engine for it."""
         nodes = self.load_directory(directory, extensions)
-        self.build_index(directory, nodes)
+        self.build_index_and_query_engine(directory, nodes)
 
     def remove_directory(self, directory: str) -> None:
         """Remove a directory from the index."""
         if directory not in self.indexes:
-            raise ValueError(f"Directory '{directory}' not found in indexes.")
+            print(f"Directory '{directory}' not found in indexes.")
+            self.indexed_directories.remove(directory)
+            return
                 
         # Remove index and query engine for the directory
         del self.indexes[directory]
@@ -158,35 +175,73 @@ class RAGAgent(BaseAgent):
 
     def init_agent(self) -> None:
         """Initialize the RAG agent with query engine tool."""
-        if not self.query_engine:
-            raise ValueError("Query engine not initialized. Call build_index first.")
+        if len(self.query_engines.items()) < 1:
+            raise ValueError("No query engines available. Add directories and initialize the agent first.")
         
-        query_engine_tool = QueryEngineTool.from_defaults(
-            query_engine=self.query_engine,
-            name="QueryEngineTool",
-            description="Retrieves relevant code snippets and best practices for software development queries.",
-            return_direct=False,
-        )
+        query_engine_tools = []
+        for directory, query_engine in self.query_engines.items():
+            tool = QueryEngineTool.from_defaults(
+                query_engine=query_engine,
+                name=f"QueryEngineTool_{directory}",
+                description=f"Retrieves relevant code snippets and best practices for software development queries from {directory}.",
+                return_direct=False,
+            )
+            query_engine_tools.append(tool)
         
         self.agent = ReActAgent.from_tools(
-            tools=[query_engine_tool],
+            tools=query_engine_tools,
             llm=self.llm20FlashGemini,
             verbose=True
         )
 
-    def query_engine_query(self, directory: str, question: str) -> Any:
-        """Process a query using the agent for a specific directory.
+    def query_engine_query(self, question: str) -> Any:
+        """Process a query using query engines from all indexed directories.
         
-        From the UI, The user can ask a question and the agent will return a response from the specified directory.
+        Args:
+            question: The question to ask across all indexed directories
+            
+        Returns:
+            Dict containing responses from each directory and combined metadata
         """
-        if not self.agent:
-            raise ValueError("Agent not initialized. Call init_agent first.")
-        directories = self.indexed_directories
+        if not self.query_engines:
+            raise ValueError("No query engines available. Add directories and initialize the agent first.")
+
         responses = []
-        for d in directories:
-            query_engine = self.get_query_engine(directory)
-            responses.append(query_engine.query(question))
-        return responses
+        source_nodes = []
+        
+        # Query each directory's query engine
+        for directory, query_engine in self.query_engines.items():
+            response = query_engine.query(question)
+            if hasattr(response, 'source_nodes'):
+                source_nodes.extend([
+                    {
+                        'file_path': node.metadata.get('file_path', 'Unknown'),
+                        'score': getattr(node, 'score', 0.0),
+                        'text': node.text
+                    }
+                    for node in response.source_nodes
+                ])
+            responses.append({
+                'directory': directory,
+                'response': str(response)
+            })
+
+        # Combine responses into a structured format
+        combined_response = {
+            'response_text': '\n\n'.join([
+                f"From {r['directory']}:\n{r['response']}"
+                for r in responses
+            ]),
+            'debug_info': {
+                'source_nodes': sorted(source_nodes, key=lambda x: x['score'], reverse=True),
+                'response_metadata': {
+                    'total_directories': len(responses),
+                    'directories': [r['directory'] for r in responses]
+                }
+            }
+        }
+        
+        return combined_response
 
     def query(self, question: str, **kwargs: Any) -> Any:
         """Process a query using the agent.
@@ -209,6 +264,6 @@ class RAGAgent(BaseAgent):
         return {
             "total_nodes": len(self.nodes) if self.nodes else 0,
             "index_initialized": self.index is not None if hasattr(self, 'index') else False,
-            "models_initialized": bool(self.embedding_model and self.llm),
+            "models_initialized": bool(self.embedding_model and self.llmOllama and self.llm15flashGemini),
             "agent_initialized": bool(self.agent)
         }
