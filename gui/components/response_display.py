@@ -1,4 +1,4 @@
-from PyQt6.QtWidgets import QTextEdit, QWidget, QVBoxLayout
+from PyQt6.QtWidgets import QWidget, QVBoxLayout, QTextEdit, QTabWidget, QTableWidget, QTableWidgetItem, QHeaderView
 from PyQt6.QtCore import Qt, pyqtSignal, QTimer
 
 class ResponseDisplay(QWidget):
@@ -20,17 +20,33 @@ class ResponseDisplay(QWidget):
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
         
-        # Create text display area
-        self.text_display = QTextEdit()
-        self.text_display.setReadOnly(True)
-        self.text_display.setPlaceholderText("Response will appear here...")
+        # Create tab widget
+        self.tab_widget = QTabWidget()
         
-        # Add to layout
-        layout.addWidget(self.text_display)
+        # Response tab
+        self.response_text = QTextEdit()
+        self.response_text.setReadOnly(True)
+        self.tab_widget.addTab(self.response_text, "Response")
+        
+        # Source nodes tab
+        self.source_nodes_table = QTableWidget()
+        self.source_nodes_table.setColumnCount(3)
+        self.source_nodes_table.setHorizontalHeaderLabels(["File Path", "Score", "Text"])
+        self.source_nodes_table.horizontalHeader().setSectionResizeMode(2, QHeaderView.ResizeMode.Stretch)
+        self.tab_widget.addTab(self.source_nodes_table, "Source Nodes")
+        
+        # Debug info tab
+        self.debug_info_text = QTextEdit()
+        self.debug_info_text.setReadOnly(True)
+        self.tab_widget.addTab(self.debug_info_text, "Debug Info")
+        
+        layout.addWidget(self.tab_widget)
 
     def clear(self):
-        """Clear the display and buffer."""
-        self.text_display.clear()
+        """Clear all displays"""
+        self.response_text.clear()
+        self.source_nodes_table.setRowCount(0)
+        self.debug_info_text.clear()
         self._response_buffer.clear()
         self._display_timer.stop()
 
@@ -40,21 +56,46 @@ class ResponseDisplay(QWidget):
         if not self._display_timer.isActive():
             self._display_timer.start()
 
-    def set_text(self, text: str):
-        """Set the complete response text."""
+    def set_text(self, response_data):
+        """
+        Set the response text and debug information
+        Args:
+            response_data (dict): Dictionary containing response text and debug info
+        """
         self.clear()
-        self.text_display.setPlainText(text)
+        if isinstance(response_data, dict):
+            # Set main response text
+            self.response_text.setText(response_data['response_text'])
+            
+            # Update source nodes table
+            source_nodes = response_data['debug_info']['source_nodes']
+            self.source_nodes_table.setRowCount(len(source_nodes))
+            
+            for row, node in enumerate(source_nodes):
+                self.source_nodes_table.setItem(row, 0, QTableWidgetItem(str(node['file_path'])))
+                self.source_nodes_table.setItem(row, 1, QTableWidgetItem(str(node['score'])))
+                self.source_nodes_table.setItem(row, 2, QTableWidgetItem(str(node['text'])))
+            
+            # Update debug info
+            debug_text = "Response Metadata:\n"
+            debug_text += str(response_data['debug_info']['response_metadata'])
+            self.debug_info_text.setText(debug_text)
+        else:
+            # Handle legacy string responses
+            self.response_text.setText(str(response_data))
+            self.source_nodes_table.setRowCount(0)
+            self.debug_info_text.clear()
         self.response_complete.emit()
 
     def _update_display(self):
         """Update the display with buffered content."""
         if self._response_buffer:
-            current_text = self.text_display.toPlainText()
+            current_text = self.response_text.toPlainText()
             next_chunk = self._response_buffer.pop(0)
-            self.text_display.setPlainText(current_text + next_chunk)
+            self.response_text.setPlainText(current_text + next_chunk)
             
             # Scroll to bottom
-            scrollbar = self.text_display.verticalScrollBar()
+            scrollbar = self.response_text.verticalScrollBar()
             scrollbar.setValue(scrollbar.maximum())
             
             # If buffer is empty, stop timer and emit completion
@@ -64,4 +105,4 @@ class ResponseDisplay(QWidget):
 
     def get_text(self) -> str:
         """Get the current display text."""
-        return self.text_display.toPlainText()
+        return self.response_text.toPlainText()

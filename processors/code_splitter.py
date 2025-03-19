@@ -40,4 +40,4 @@ class CustomCodeSplitter:
         Returns:
             bool: True if file extension matches code extensions
         """
-        return any(file_path.endswith(ext) for ext in config.splitter.code_extensions)
+        return any(file_path.endswith(ext) for ext in config.splitter.python_extensions)

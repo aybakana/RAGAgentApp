@@ -31,20 +31,19 @@ class LLMConfig:
 
 @dataclass
 class RetrievalLLMConfig:
-    model_name: str = "gemma3:1b"
+    model_name: str = "llama3.2:1b"
     temperature: float = 0.7
     max_tokens: Optional[int] = None
     top_p: float = 0.95
     request_timeout: int = 600
 
 @dataclass
-class GeminiLLMConfig:
+class Gemini15FlashLLMConfig:
     model_name: str = "models/gemini-1.5-flash"
-# models/gemini-2.0-flash",
-# models/gemini-2.0-flash-thinking-exp-01-21
-# models/gemini-1.5-flash
-# models/gemini-2.0-flash
-# models/gemini-2.0-pro-exp-02-05    
+
+@dataclass
+class Gemini20FlashLLMConfig:
+    model_name: str = "models/gemini-2.0-flash"
 
 @dataclass
 class SplitterConfig:
@@ -58,14 +57,20 @@ class SplitterConfig:
     text_chunk_overlap: int = 20
     
     # File extensions to process
-    code_extensions: List[str] = field(default_factory=lambda: [".py", ".js", ".ts", ".java", ".cpp", ".cs"])
-    text_extensions: List[str] = field(default_factory=lambda: [".txt", ".md", ".rst", ".json", ".yaml", ".yml"])
+    python_extensions: List[str] = field(default_factory=lambda: [".py"])
+    web_code_extensions: List[str] = field(default_factory=lambda: [".js", ".ts"])
+    cs_extensions: List[str] = field(default_factory=lambda: [".cs"])
+    java_extensions: List[str] = field(default_factory=lambda: [".java"])
+    cpp_extensions: List[str] = field(default_factory=lambda: [".cpp", ".h"])
+    text_extensions: List[str] = field(default_factory=lambda: [".txt", ".md"])
 
 @dataclass
 class AppConfig:
     embedding: EmbeddingConfig = field(default_factory=EmbeddingConfig)
     llm: LLMConfig = field(default_factory=LLMConfig)
-    geminiLLM: GeminiLLMConfig = field(default_factory=GeminiLLMConfig)
+    gemini15FlashLLM: Gemini15FlashLLMConfig = field(default_factory=Gemini15FlashLLMConfig)
+    gemini20FlashLLM: Gemini20FlashLLMConfig = field(default_factory=Gemini20FlashLLMConfig)
+    #geminiLLM: GeminiLLMConfig = field(default_factory=GeminiLLMConfig)
     retrieval_llm: RetrievalLLMConfig = field(default_factory=RetrievalLLMConfig)
     splitter: SplitterConfig = field(default_factory=SplitterConfig)
     

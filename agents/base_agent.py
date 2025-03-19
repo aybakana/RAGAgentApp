@@ -4,6 +4,7 @@ from llama_index.core import Document
 
 class BaseAgent(ABC):
     """Abstract base class for all agents in the system."""
+    initialized = False
 
     @abstractmethod
     def init_models(self) -> None:

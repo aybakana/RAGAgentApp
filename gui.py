@@ -19,7 +19,7 @@ class AgentWorker(QThread):
 
     def run(self):
         try:
-            if self.task == "load_documents":
+            if self.task == "load_directory":
                 self.agent.load_documents(self.args[0], progress_callback=self.progress.emit)
                 self.finished.emit(None)
             elif self.task == "init_agent":
@@ -33,6 +33,18 @@ class AgentWorker(QThread):
             elif self.task == "query":
                 response = self.agent.query(self.args[0])
                 self.finished.emit(response)
+            elif self.task == "query_engine_query":
+                response = self.agent.query_engine_query(self.args[0])
+                self.finished.emit(response)                
+            elif self.task == "save_all_indexes":
+                self.agent.save_all_indexes(self.args[0])
+                self.finished.emit(None)
+            elif self.task == "load_all_indexes":
+                self.agent.load_all_indexes(self.args[0])
+                self.finished.emit(None)
+            elif self.task == "remove_directory":
+                self.agent.remove_directory_from_index(self.args[0])
+                self.finished.emit(None)
         except Exception as e:
             self.error.emit(str(e))
 
@@ -94,7 +106,7 @@ class AgentAppGUI(QMainWindow):
         directory = QFileDialog.getExistingDirectory(self, "Select Directory")
         if directory:
             self.show_progress_bar()
-            self.worker = AgentWorker(self.agent, "load_documents", directory)
+            self.worker = AgentWorker(self.agent, "load_directory", directory)
             self.worker.progress.connect(self.update_progress)
             self.worker.finished.connect(self.on_load_complete)
             self.worker.error.connect(self.on_error)
@@ -120,6 +132,29 @@ class AgentAppGUI(QMainWindow):
         self.worker.finished.connect(self.on_query_complete)
         self.worker.error.connect(self.on_error)
         self.worker.start()
+
+    def ask_question_to_query_engine(self):
+        question = self.question_input.text()
+        if not question:
+            QMessageBox.warning(self, "Input Error", "Please enter a question.")
+            return
+
+        self.show_progress_bar()
+        self.worker = AgentWorker(self.agent, "query_engine_query", question)
+        self.worker.progress.connect(self.update_progress)
+        self.worker.finished.connect(self.on_query_complete)
+        self.worker.error.connect(self.on_error)
+        self.worker.start()        
+
+    def save_all_indexes(self):
+        storage_base_path = QFileDialog.getExistingDirectory(self, "Select Directory to Save Indexes")
+        if storage_base_path:
+            self.agent.save_all_indexes(storage_base_path)
+
+    def load_all_indexes(self):
+        storage_base_path = QFileDialog.getExistingDirectory(self, "Select Directory to Load Indexes")
+        if storage_base_path:
+            self.agent.load_all_indexes(storage_base_path)        
 
     def on_load_complete(self, _):
         self.hide_progress_bar()

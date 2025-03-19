@@ -1,13 +1,13 @@
 from PyQt6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QLabel, 
     QPushButton, QFileDialog, QMessageBox, QProgressBar,
-    QLineEdit, QStatusBar
+    QLineEdit, QStatusBar, QComboBox
 )
 from PyQt6.QtCore import Qt, QThread, pyqtSignal
 from PyQt6.QtGui import QFont, QIcon
-#from agents.rag_agent import RAGAgent
 from agents.query_engine_agent import RAGAgent
 from .components.response_display import ResponseDisplay
+from config.settings import config
 
 class AgentWorker(QThread):
     """Worker thread for running agent operations."""
@@ -78,15 +78,34 @@ class MainWindow(QMainWindow):
         dir_layout.addWidget(self.init_button)
         layout.addLayout(dir_layout)
 
-        # Query Input
+        # Query Input and Controls
         query_layout = QHBoxLayout()
         self.query_input = QLineEdit()
         self.query_input.setPlaceholderText("Enter your question here...")
         query_layout.addWidget(self.query_input)
         
+        # Model Selection
+        self.model_selector = QComboBox()
+        self.model_selector.addItems([
+            "models/gemini-2.0-flash", 
+            "models/gemini-2.0-flash-thinking-exp-01-21",
+            "models/gemini-1.5-flash",
+            "models/gemini-2.0-pro-exp-02-05",
+            "models/gemini-2.0-flash-lite",
+            "models/gemini-1.5-pro",
+            "models/gemini-1.5-flash-8b"])
+        self.model_selector.currentTextChanged.connect(self.on_model_changed)
+        query_layout.addWidget(self.model_selector)
+        
         self.ask_button = QPushButton("Ask")
         self.ask_button.clicked.connect(self.ask_question)
         query_layout.addWidget(self.ask_button)
+        
+        self.cancel_button = QPushButton("Cancel")
+        self.cancel_button.clicked.connect(self.cancel_query)
+        self.cancel_button.setEnabled(False)
+        query_layout.addWidget(self.cancel_button)
+        
         layout.addLayout(query_layout)
 
         # Response Display
@@ -157,6 +176,7 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage("Processing question...")
         self.ask_button.setEnabled(False)
         self.query_input.setEnabled(False)
+        self.cancel_button.setEnabled(True)
         
         # Clear previous response
         self.response_display.clear()
@@ -166,6 +186,32 @@ class MainWindow(QMainWindow):
         self.worker.finished.connect(self.on_response_received)
         self.worker.error.connect(self.on_error)
         self.worker.start()
+
+    def cancel_query(self):
+        """Cancel the current query operation."""
+        if hasattr(self, 'worker') and self.worker.isRunning():
+            self.worker.terminate()
+            self.worker.wait()
+            self.on_query_cancelled()
+
+    def on_query_cancelled(self):
+        """Handle query cancellation."""
+        self.hide_progress_bar()
+        self.status_bar.showMessage("Query cancelled")
+        self.ask_button.setEnabled(True)
+        self.query_input.setEnabled(True)
+        self.cancel_button.setEnabled(False)
+        self.response_display.set_text("Query cancelled by user")
+
+    def on_model_changed(self, model_name):
+        """Handle LLM model change."""
+        if self.agent.initialized:
+            self.show_progress_bar()
+            self.status_bar.showMessage(f"Reinitializing agent with {model_name}...")
+            # Update config
+            config.geminiLLM.model_name = model_name
+            # Reinitialize agent
+            self.initialize_agent()
 
     def on_documents_loaded(self, _):
         """Handle completion of document loading."""
@@ -201,9 +247,10 @@ class MainWindow(QMainWindow):
         self.status_bar.showMessage("Response received")
         self.ask_button.setEnabled(True)
         self.query_input.setEnabled(True)
+        self.cancel_button.setEnabled(False)
         
         # Display response
-        self.response_display.set_text(str(response))
+        self.response_display.set_text(response)
 
     def on_error(self, error_message):
         """Handle errors from worker threads."""
