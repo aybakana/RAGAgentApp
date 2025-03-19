@@ -5,6 +5,7 @@ from llama_index.core.tools import QueryEngineTool
 from llama_index.core.agent import ReActAgent
 from llama_index.embeddings.huggingface import HuggingFaceEmbedding
 from llama_index.llms.ollama import Ollama
+from llama_index.llms.gemini import Gemini
 from llama_index.core.indices.vector_store import VectorStoreIndex
 from llama_index.core.postprocessor import SimilarityPostprocessor
 from config.settings import config
@@ -17,6 +18,7 @@ class RAGAgent(BaseAgent):
         self.nodes = []
         self.embedding_model = None
         self.llm = None
+        self.llmGemini = None
         self.query_engine = None
         self.agent = None
         self.index = None
@@ -29,10 +31,11 @@ class RAGAgent(BaseAgent):
             model_name=config.embedding.model_name,
             device=config.embedding.device
         )
-        self.llm = Ollama(
-            model=config.llm.model_name,
-            temperature=config.llm.temperature,
-            request_timeout=config.llm.request_timeout
+        self.llm15flashGemini = Gemini(
+            model=config.gemini15FlashLLM.model_name,
+        )
+        self.llm20FlashGemini = Gemini(
+            model=config.gemini20FlashLLM.model_name,
         )
 
     def load_documents(self, directories: str, extensions: Optional[List[str]] = None) -> None:
@@ -41,15 +44,16 @@ class RAGAgent(BaseAgent):
             code_exts = config.splitter.code_extensions
             text_exts = config.splitter.text_extensions
         else:
-            code_exts = [ext for ext in extensions if self.code_splitter.is_code_file(f"test{ext}")]
-            text_exts = [ext for ext in extensions if self.text_splitter.is_text_file(f"test{ext}")]
+            code_exts = [".py"]
+            text_exts = [".txt", ".md"]
 
         # Load code files
         if code_exts:
             code_documents = SimpleDirectoryReader(
                 input_dir=directories, 
                 recursive=True, 
-                required_exts=code_exts
+                #required_exts=code_exts,
+                required_exts=[".py"]
             ).load_data()
             code_nodes = self.code_splitter.split_documents(code_documents)
             self.nodes.extend(code_nodes)
@@ -59,17 +63,19 @@ class RAGAgent(BaseAgent):
             text_documents = SimpleDirectoryReader(
                 input_dir=directories, 
                 recursive=True, 
-                required_exts=text_exts
+                #required_exts=text_exts,
+                required_exts=[".txt", ".md"]
             ).load_data()
             text_nodes = self.text_splitter.split_documents(text_documents)
             self.nodes.extend(text_nodes)
+
 
     def build_index(self) -> None:
         """Build the vector store index and initialize retrievers."""
         if not self.nodes:
             raise ValueError("No documents loaded. Call load_documents first.")
         
-        if not self.embedding_model or not self.llm:
+        if not self.embedding_model or not self.llm15flashGemini:
             raise ValueError("Models not initialized. Call init_models first.")
         
         # Create vector store index
@@ -80,7 +86,7 @@ class RAGAgent(BaseAgent):
         
         # Create query engine with post-processing
         self.query_engine = self.index.as_query_engine(
-            llm=self.llm,
+            llm=self.llm15flashGemini,
             similarity_top_k=5,
             node_postprocessors=[
                 SimilarityPostprocessor(similarity_cutoff=0.7)
@@ -101,7 +107,7 @@ class RAGAgent(BaseAgent):
         
         self.agent = ReActAgent.from_tools(
             tools=[query_engine_tool],
-            llm=self.llm,
+            llm=self.llm20FlashGemini,
             verbose=True
         )
 
